@@ -3,56 +3,121 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我獨自英打 - 版本二</title>
+  <title>我獨自英打 - v3 ASDF 訓練</title>
   <style>
     body {
       font-family: system-ui, "Microsoft JhengHei", sans-serif;
       background-color: #0b0c10;
-      color: #c5c6c7;
+      color: #ffffff;
       display: flex;
       flex-direction: column;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       min-height: 100vh;
       margin: 0;
     }
-    h1 {
-      color: #66fcf1;
-      font-size: 2.5rem;
-      margin-bottom: 15px;
+    .game-box {
+      background: #1f2833;
+      border: 2px solid #66fcf1;
+      border-radius: 16px;
+      padding: 30px;
+      text-align: center;
+      width: 320px;
     }
-    img.keyboard-img {
-      max-width: 320px;
+    .target {
+      font-size: 5rem;
+      font-weight: bold;
+      color: #66fcf1;
+      margin: 20px 0;
+    }
+    .keys-hud {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
       margin-bottom: 20px;
-      border-radius: 8px;
+    }
+    .key-btn {
+      width: 45px;
+      height: 45px;
+      border: 1px solid #45a29e;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      background: #0b0c10;
+    }
+    .key-btn.active {
+      background: #66fcf1;
+      color: #0b0c10;
+      box-shadow: 0 0 10px #66fcf1;
     }
     .btn {
-      padding: 12px 32px;
-      font-size: 1.1rem;
-      font-weight: bold;
-      background-color: #66fcf1;
+      padding: 10px 20px;
+      background: #66fcf1;
       color: #0b0c10;
+      font-weight: bold;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       cursor: pointer;
+    }
+    .back-link {
+      display: block;
+      margin-top: 15px;
+      color: #8892b0;
+      text-decoration: none;
     }
   </style>
 </head>
 <body>
-  <h1>我獨自英打</h1>
-  <!-- 使用相對路徑引用 assets 資料夾素材 -->
-  <img src="assets/keyboard.png" alt="鍵盤圖示" class="keyboard-img" onerror="this.style.display='none'">
-  <button id="start-btn" class="btn">開始挑戰</button>
+  <div class="game-box">
+    <h2>v3：ASDF 左手修鍊</h2>
+    <div class="score">得分：<span id="score">0</span></div>
+    <div id="target" class="target">?</div>
 
-  <audio id="beep-sound" src="assets/beep.wav" preload="auto"></audio>
+    <div class="keys-hud">
+      <div id="key-A" class="key-btn">A</div>
+      <div id="key-S" class="key-btn">S</div>
+      <div id="key-D" class="key-btn">D</div>
+      <div id="key-F" class="key-btn">F</div>
+    </div>
+
+    <button id="start-btn" class="btn">開始練習</button>
+    <a href="../index.html" class="back-link">← 回開發歷程</a>
+  </div>
 
   <script>
-    const startBtn = document.getElementById('start-btn');
-    const beepSound = document.getElementById('beep-sound');
+    const pool = ["A", "S", "D", "F"];
+    let current = "";
+    let score = 0;
+    let isPlaying = false;
 
-    startBtn.addEventListener('click', () => {
-      beepSound.currentTime = 0;
-      beepSound.play().catch(() => alert('播放音效失敗，請檢查 assets/beep.wav 路徑'));
+    const targetEl = document.getElementById("target");
+    const scoreEl = document.getElementById("score");
+    const startBtn = document.getElementById("start-btn");
+
+    function next() {
+      current = pool[Math.floor(Math.random() * pool.length)];
+      targetEl.textContent = current;
+      document.querySelectorAll('.key-btn').forEach(k => k.classList.remove('active'));
+      const activeKey = document.getElementById(`key-${current}`);
+      if (activeKey) activeKey.classList.add('active');
+    }
+
+    startBtn.addEventListener("click", () => {
+      score = 0;
+      scoreEl.textContent = score;
+      isPlaying = true;
+      next();
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (!isPlaying || e.repeat) return;
+      if (e.key.toUpperCase() === current) {
+        score++;
+        scoreEl.textContent = score;
+        next();
+      }
     });
   </script>
 </body>
