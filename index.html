@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我獨自英打 - v3 ASDF 訓練</title>
+  <title>我獨自英打 - v4 掉落字母模式</title>
   <style>
     body {
       font-family: system-ui, "Microsoft JhengHei", sans-serif;
@@ -12,48 +12,43 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 100vh;
+      padding: 20px;
       margin: 0;
     }
-    .game-box {
+    .game-area {
+      position: relative;
+      width: 360px;
+      height: 400px;
       background: #1f2833;
-      border: 2px solid #66fcf1;
-      border-radius: 16px;
-      padding: 30px;
-      text-align: center;
-      width: 320px;
+      border: 2px solid #45a29e;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 15px;
     }
-    .target {
-      font-size: 5rem;
+    .falling-char {
+      position: absolute;
+      font-size: 3rem;
       font-weight: bold;
       color: #66fcf1;
-      margin: 20px 0;
+      width: 100%;
+      text-align: center;
+      text-shadow: 0 0 10px #66fcf1;
     }
-    .keys-hud {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 20px;
+    .controls {
+      background: #1f2833;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      width: 330px;
     }
-    .key-btn {
-      width: 45px;
-      height: 45px;
-      border: 1px solid #45a29e;
-      border-radius: 6px;
+    .control-group {
+      margin-bottom: 10px;
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      background: #0b0c10;
-    }
-    .key-btn.active {
-      background: #66fcf1;
-      color: #0b0c10;
-      box-shadow: 0 0 10px #66fcf1;
     }
     .btn {
-      padding: 10px 20px;
+      padding: 8px 16px;
       background: #66fcf1;
       color: #0b0c10;
       font-weight: bold;
@@ -62,7 +57,6 @@
       cursor: pointer;
     }
     .back-link {
-      display: block;
       margin-top: 15px;
       color: #8892b0;
       text-decoration: none;
@@ -70,55 +64,128 @@
   </style>
 </head>
 <body>
-  <div class="game-box">
-    <h2>v3：ASDF 左手修鍊</h2>
-    <div class="score">得分：<span id="score">0</span></div>
-    <div id="target" class="target">?</div>
 
-    <div class="keys-hud">
-      <div id="key-A" class="key-btn">A</div>
-      <div id="key-S" class="key-btn">S</div>
-      <div id="key-D" class="key-btn">D</div>
-      <div id="key-F" class="key-btn">F</div>
+  <h2>v4：十鍵字母掉落訓練</h2>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>基礎掉落時間 (秒): <span id="speed-val">8</span>s</label>
+      <input type="range" id="speed-range" min="3" max="14" value="8">
     </div>
-
-    <button id="start-btn" class="btn">開始練習</button>
-    <a href="../index.html" class="back-link">← 回開發歷程</a>
+    <div class="control-group">
+      <label for="accel-check">每答對 3 題加速 1 秒</label>
+      <input type="checkbox" id="accel-check">
+    </div>
+    <button id="start-btn" class="btn" style="width: 100%;">開始挑戰 (10 題)</button>
   </div>
 
+  <div>得分: <span id="score">0</span> | 落地錯過: <span id="missed">0</span> / 10</div>
+
+  <div class="game-area" id="game-area">
+    <div id="char" class="falling-char" style="display: none;">?</div>
+  </div>
+
+  <a href="../index.html" class="back-link">← 回開發歷程</a>
+
   <script>
-    const pool = ["A", "S", "D", "F"];
-    let current = "";
-    let score = 0;
+    const keys = ["A", "S", "D", "F", "G", "H", "J", "K", "L", ";"];
+    let score = 0, missed = 0, totalRounds = 0;
+    let currentKey = "";
     let isPlaying = false;
 
-    const targetEl = document.getElementById("target");
-    const scoreEl = document.getElementById("score");
-    const startBtn = document.getElementById("start-btn");
+    let posY = 0;
+    let animId = null;
+    let baseSpeed = 8; // 秒數
+    let currentSpeed = 8;
+    let correctCount = 0;
 
-    function next() {
-      current = pool[Math.floor(Math.random() * pool.length)];
-      targetEl.textContent = current;
-      document.querySelectorAll('.key-btn').forEach(k => k.classList.remove('active'));
-      const activeKey = document.getElementById(`key-${current}`);
-      if (activeKey) activeKey.classList.add('active');
+    const charEl = document.getElementById("char");
+    const scoreEl = document.getElementById("score");
+    const missedEl = document.getElementById("missed");
+    const startBtn = document.getElementById("start-btn");
+    const speedRange = document.getElementById("speed-range");
+    const speedVal = document.getElementById("speed-val");
+    const accelCheck = document.getElementById("accel-check");
+    const gameArea = document.getElementById("game-area");
+
+    speedRange.addEventListener("input", (e) => {
+      baseSpeed = parseInt(e.target.value);
+      speedVal.textContent = baseSpeed;
+    });
+
+    function spawnKey() {
+      if (totalRounds >= 10) {
+        endGame();
+        return;
+      }
+      totalRounds++;
+      currentKey = keys[Math.floor(Math.random() * keys.length)];
+      charEl.textContent = currentKey;
+      charEl.style.display = "block";
+      posY = 0;
+      charEl.style.top = posY + "px";
+
+      animate();
     }
 
-    startBtn.addEventListener("click", () => {
-      score = 0;
+    function animate() {
+      const areaHeight = gameArea.clientHeight - 50;
+      // 計算每幀移動像素 (預設 60 FPS)
+      const step = areaHeight / (currentSpeed * 60);
+      posY += step;
+      charEl.style.top = posY + "px";
+
+      if (posY >= areaHeight) {
+        // 落地錯過
+        missed++;
+        missedEl.textContent = missed;
+        cancelAnimationFrame(animId);
+        spawnKey();
+      } else {
+        animId = requestAnimationFrame(animate);
+      }
+    }
+
+    function startGame() {
+      score = 0; missed = 0; totalRounds = 0; correctCount = 0;
+      currentSpeed = baseSpeed;
       scoreEl.textContent = score;
+      missedEl.textContent = missed;
       isPlaying = true;
-      next();
-    });
+      startBtn.disabled = true;
+      spawnKey();
+    }
+
+    function endGame() {
+      isPlaying = false;
+      cancelAnimationFrame(animId);
+      charEl.style.display = "none";
+      startBtn.disabled = false;
+      alert(`回合結束！得分：${score}，錯過：${missed}`);
+    }
 
     window.addEventListener("keydown", (e) => {
       if (!isPlaying || e.repeat) return;
-      if (e.key.toUpperCase() === current) {
+      
+      let pressed = e.key.toUpperCase();
+      if (e.key === ";") pressed = ";";
+
+      if (pressed === currentKey) {
         score++;
+        correctCount++;
         scoreEl.textContent = score;
-        next();
+        
+        // 漸進加速邏輯：每對 3 題縮短 1 秒 (最短 3 秒)
+        if (accelCheck.checked && correctCount % 3 === 0) {
+          currentSpeed = Math.max(3, currentSpeed - 1);
+        }
+
+        cancelAnimationFrame(animId);
+        spawnKey();
       }
     });
+
+    startBtn.addEventListener("click", startGame);
   </script>
 </body>
 </html>
